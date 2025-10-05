@@ -1,0 +1,25 @@
+﻿<Window x:Class="PresentationCursor.CanvasWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PresentationCursor"
+        mc:Ignorable="d"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        
+        IsHitTestVisible="False">
+    <Canvas x:Name="OverlayCanvas" IsHitTestVisible="False">
+        <!-- Circle highlight -->
+        <Ellipse x:Name="CursorCircle"
+                 Width="50" Height="50"
+                 Stroke="Yellow"
+                 StrokeThickness="3"
+                 IsHitTestVisible="False"
+                 Opacity="0.6"/>
+    </Canvas>
+</Window>
