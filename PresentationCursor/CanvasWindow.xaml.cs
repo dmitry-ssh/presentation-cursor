@@ -4,9 +4,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 using Brushes = System.Windows.Media.Brushes;
+using Point = System.Windows.Point;
 
 namespace PresentationCursor
 {
@@ -32,7 +32,7 @@ namespace PresentationCursor
         public struct POINT { public int X; public int Y; }
 
         private readonly DispatcherTimer _timer;
-        private readonly Queue<Ellipse> _trail = new();
+        private TrailingPolyline? _trailingPolyline;
 
         private const int GWL_EXSTYLE = -20;
         private const int WS_EX_TRANSPARENT = 0x00000020;
@@ -42,7 +42,7 @@ namespace PresentationCursor
         private static extern int GetWindowLong(IntPtr hwnd, int index);
 
         [DllImport("user32.dll")]
-        private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
+        private static extern int SetWindowLong(IntPtr hwnd, int index, int newValue);
         
         public CanvasWindow()
         {
@@ -50,6 +50,14 @@ namespace PresentationCursor
 
             Loaded += (_, __) =>
             {
+                // Initialize trailing polyline after the canvas is loaded
+                _trailingPolyline = new TrailingPolyline(OverlayCanvas)
+                {
+                    MaxTrailSegments = 30,
+                    FadeRate = 0.05,
+                    MinMovementDistance = 3.0
+                };
+                
                 _timer.Start();
             };
 
@@ -96,52 +104,24 @@ namespace PresentationCursor
             // Only draw if cursor is within this window's bounds
             if (x >= 0 && x <= this.Width && y >= 0 && y <= this.Height)
             {
-                // Make elements visible
-                CursorCircle.Visibility = Visibility.Visible;
+                // Make cursor circle visible
+                CursorCircle.Visibility = Visibility.Collapsed;
                 
                 // Move the highlight circle
                 Canvas.SetLeft(CursorCircle, x - CursorCircle.Width / 2);
                 Canvas.SetTop(CursorCircle, y - CursorCircle.Height / 2);
 
-                // Add a fading trail dot
-                var dot = new Ellipse
-                {
-                    Width = 10,
-                    Height = 10,
-                    Fill = Brushes.Yellow,
-                    Opacity = 0.6,
-                    IsHitTestVisible = false
-                };
-
-                Canvas.SetLeft(dot, x - dot.Width / 2);
-                Canvas.SetTop(dot, y - dot.Height / 2);
-                OverlayCanvas.Children.Add(dot);
-                _trail.Enqueue(dot);
+                // Update trailing polyline with current cursor position
+                var currentPoint = new Point(x, y);
+                _trailingPolyline?.OnTick(currentPoint);
             }
             else
             {
                 // Hide cursor circle when not on this screen
-                CursorCircle.Visibility = Visibility.Hidden;
-            }
-
-            // Animate trail fade/shrink (always process existing trail)
-            foreach (var ellipse in _trail)
-            {
-                ellipse.Opacity -= 0.02;
-                ellipse.Width *= 0.97;
-                ellipse.Height *= 0.97;
-
-                // Keep centered when shrinking
-                double left = Canvas.GetLeft(ellipse) + (1 - 0.97) * ellipse.Width / 2;
-                double top = Canvas.GetTop(ellipse) + (1 - 0.97) * ellipse.Height / 2;
-                Canvas.SetLeft(ellipse, left);
-                Canvas.SetTop(ellipse, top);
-            }
-
-            // Remove old dots
-            while (_trail.Count > 0 && _trail.Peek().Opacity <= 0)
-            {
-                OverlayCanvas.Children.Remove(_trail.Dequeue());
+                CursorCircle.Visibility = Visibility.Collapsed;
+                
+                // Notify trailing polyline that cursor left this screen
+                _trailingPolyline?.OnCursorLeft();
             }
         }
     }
